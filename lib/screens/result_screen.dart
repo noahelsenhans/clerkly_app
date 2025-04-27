@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../services/ocr_service.dart';
 import '../services/category_service.dart';
@@ -15,9 +14,9 @@ class ResultScreen extends StatefulWidget {
 }
 
 class _ResultScreenState extends State<ResultScreen> {
-  String? _text;
+  String _text = '';
+  String _category = '';
   bool _busy = true;
-  String? _category;
 
   @override
   void initState() {
@@ -27,26 +26,35 @@ class _ResultScreenState extends State<ResultScreen> {
 
   Future<void> _runOCR() async {
     final recognized = await OCRService.extractText(widget.imagePath);
-    final category = CategoryService.classify(recognized);
+    final cat = CategoryService.classify(recognized);
     setState(() {
       _text = recognized;
-      _category = category;
+      _category = cat;
       _busy = false;
     });
   }
 
   Future<void> _save() async {
     final docsDir = await getApplicationDocumentsDirectory();
-    final filename = p.basename(widget.imagePath);
-    final newPath = '\${docsDir.path}/\$filename';
-    await File(widget.imagePath).copy(newPath);
+    final filename = widget.imagePath.split('/').last;
+    final newPath = docsDir.path + '/' + filename;
+
+    try {
+      await File(widget.imagePath).copy(newPath);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fehler beim Kopieren: \$e')),
+      );
+      return;
+    }
 
     await FirestoreService.saveDocument(
       path: newPath,
-      text: _text ?? '',
-      category: _category ?? 'Sonstiges',
+      text: _text,
+      category: _category,
     );
-    Navigator.of(context).popUntil((r) => r.isFirst);
+
+    Navigator.of(context).popUntil((route) => route.isFirst);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Gespeichert in \"\$_category\"')),
     );
@@ -54,18 +62,28 @@ class _ResultScreenState extends State<ResultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_busy) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_busy) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Ergebnis')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Image.file(File(widget.imagePath), width: MediaQuery.of(context).size.width * 0.8),
+            Image.file(File(widget.imagePath), width: double.infinity),
             const SizedBox(height: 16),
-            Text(_text ?? '', style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 12),
-            Text('Kategorie: \$_category', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Kategorie: \$_category',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _text,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               icon: const Icon(Icons.save),
