@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "562818421588",
+    "project_id": "clerkly-dev-d6b35",
+    "storage_bucket": "clerkly-dev-d6b35.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:562818421588:android:5e83bfe57f19dd506baec1",
+        "android_client_info": {
+          "package_name": "com.example.clerkly_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7RqIxzeQ2wnjX-Cg-el32h1-X1YVO8wI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
