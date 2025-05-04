@@ -1,0 +1,44 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class FirestoreService {
+  /// Liefert einen Stream aller Dokumente aus der "documents"-Collection
+  Stream<QuerySnapshot<Map<String, dynamic>>> getDocumentsStream() {
+    return FirebaseFirestore.instance
+      .collection('documents')
+      .snapshots();
+  }  /// Liefert einen Stream aller Dokumente aus der "documents"-Collection
+  Stream<QuerySnapshot<Map<String, dynamic>>> getDocumentsStream() {
+    return FirebaseFirestore.instance
+      .collection('documents')
+      .snapshots();
+  }  static Stream<QuerySnapshot<Map<String, dynamic>>> getDocumentsStream() {
+    return FirebaseFirestore.instance
+      .collection('documents')
+      .orderBy('timestamp', descending: true)
+      .snapshots();
+  }
+
+  static Future<void> saveDocument({
+    required String path,
+    required String text,
+    required String summary,
+    required String category,
+  }) {
+    return FirebaseFirestore.instance
+      .collection('documents')
+      .add({
+        'path': path,
+        'text': text,
+        'summary': summary,
+        'category': category,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+  }
+}
+
+  /// Liefert einen Stream aller Dokumente aus der 'documents'-Collection
+  Stream<QuerySnapshot<Map<String, dynamic>>> getDocumentsStream() {
+    return FirebaseFirestore.instance
+      .collection('documents')
+      .snapshots();
+  }

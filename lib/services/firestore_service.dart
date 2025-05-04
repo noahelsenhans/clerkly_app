@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class FirestoreService {
-  /// Stream aller Dokumente
+  /// Liefert einen Stream aller Dokumente aus der "documents"-Collection
   static Stream<QuerySnapshot<Map<String, dynamic>>> getDocumentsStream() {
     return FirebaseFirestore.instance
-      .collection('documents')
-      .orderBy('timestamp', descending: true)
-      .snapshots();
+        .collection('documents')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
   }
 
   /// Speichert ein Dokument mit Bild-Pfad, OCR-Text und Kategorie
@@ -15,13 +15,12 @@ class FirestoreService {
     required String text,
     required String category,
   }) {
-    return FirebaseFirestore.instance
-      .collection('documents')
-      .add({
-        'path': path,
-        'text': text,
-        'category': category,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+    return FirebaseFirestore.instance.collection('documents').add({
+      'path': path,
+      'text': text,
+      'category': category,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
   }
 }
+

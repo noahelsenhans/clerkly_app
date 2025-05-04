@@ -1,0 +1,99 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import '../services/ocr_service.dart';
+import '../services/category_service.dart';
+import '../services/firestore_service.dart';
+
+class ResultScreen extends StatefulWidget {
+  final String imagePath;
+  const ResultScreen({Key? key, required this.imagePath}) : super(key: key);
+
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  String _text = '';
+  String _summary = '';
+  List<String> _categories = [];
+  String _chosenCategory = '';
+  bool _busy = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _process();
+  }
+
+  Future<void> _process() async {
+    final recognized = await OCRService.extractText(widget.imagePath);
+    final sum = await CategoryService.getSummary(recognized);
+    final cats = await CategoryService.getSuggestions(recognized);
+    setState(() {
+      _text = recognized;
+      _summary = sum;
+      _categories = cats;
+      _chosenCategory = cats.first;
+      _busy = false;
+    });
+  }
+
+  Future<void> _save() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final filename = p.basename(widget.imagePath);
+    final newPath = docsDir.path + '/' + filename;
+    await File(widget.imagePath).copy(newPath);
+
+    await FirestoreService.saveDocument(
+      path: newPath,
+      text: _text,
+      PARAM_NAME: _summary,
+      category: _chosenCategory,
+    );
+
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text('Gespeichert: \$_chosenCategory')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_busy) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Scaffold(
+      appBar: AppBar(title: const Text('Ergebnis')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Image.file(File(widget.imagePath)),
+            const SizedBox(height: 16),
+            Text('Zusammenfassung:', style: Theme.of(context).textTheme.titleMedium),
+            Text(_summary, style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 16),
+            Text('Kategorien:', style: Theme.of(context).textTheme.titleMedium),
+            Wrap(
+              spacing: 8,
+              children: _categories.map((c) {
+                final sel = c == _chosenCategory;
+                return ChoiceChip(
+                  label: Text(c),
+                  selected: sel,
+                  onSelected: (_) => setState(() => _chosenCategory = c),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save),
+              label: const Text('Speichern'),
+              onPressed: _save,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -34,43 +34,43 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final results = snap.data!.docs.where((d) {
+        final hits = snap.data!.docs.where((d) {
           final data = d.data();
-          final text = (data['text'] ?? '').toString().toLowerCase();
-          final cat  = (data['category'] ?? '').toString().toLowerCase();
-          final q    = query.toLowerCase();
-          return text.contains(q) || cat.contains(q);
+          final txt     = (data['text']    ?? '').toString().toLowerCase();
+          final sum     = (data['summary'] ?? '').toString().toLowerCase();
+          final cat     = (data['category']?? '').toString().toLowerCase();
+          final q       = query.toLowerCase();
+          return txt.contains(q) || sum.contains(q) || cat.contains(q);
         }).toList();
-        if (results.isEmpty) {
+
+        if (hits.isEmpty) {
           return const Center(child: Text('Keine Treffer'));
         }
+
         return ListView.builder(
-          itemCount: results.length,
-          itemBuilder: (c, i) {
-            final d = results[i];
+          itemCount: hits.length,
+          itemBuilder: (context, index) {
+            final d    = hits[index];
             final data = d.data();
-            final preview = (data['text'] ?? '').toString().split('\n').first;
-            final ts = data['timestamp'] as Timestamp?;
-            final date = ts?.toDate() ?? DateTime.now();
+            final preview = (data['summary'] ?? '').toString();
+            final ts      = data['timestamp'] as Timestamp?;
+            final date    = ts?.toDate() ?? DateTime.now();
             final dateStr = DateFormat.yMd('de').add_Hm().format(date);
+
             return ListTile(
               leading: const Icon(Icons.insert_drive_file),
               title: Text(preview),
-              subtitle: Text(
-                "\${data['category'] ?? 'Sonstiges'} · \$dateStr"
-              ),
+              subtitle: Text("\${data['category']} · \$dateStr"),
               onTap: () {
                 close(context, null);
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => DocumentDetailScreen(
-                      path: data['path']?.toString() ?? '',
-                      text: data['text']?.toString() ?? '',
-                      category: data['category']?.toString() ?? 'Sonstiges',
-                      timestamp: date,
-                    ),
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => DocumentDetailScreen(
+                    path: data['path'] as String,
+                    text: data['text'] as String,
+                    category: data['category'] as String,
+                    timestamp: date,
                   ),
-                );
+                ));
               },
             );
           },
