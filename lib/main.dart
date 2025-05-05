@@ -1,3 +1,4 @@
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:clerkly_app/services/firestore_service.dart';import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -7,11 +8,12 @@ import 'screens/home_screen.dart';
 import 'firebase_options.dart'; // später generiert
 
 Future<void> main() async {
-  await dotenv.load(fileName: ".env");
+//  await dotenv.load(fileName: ".env");
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+await initializeDateFormatting('de_DE', null);
   runApp(const MyApp());
 }
 
@@ -22,7 +24,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Clerkly',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: AuthGate(),
+      home: HomeScreen(),
     );
   }
 }
