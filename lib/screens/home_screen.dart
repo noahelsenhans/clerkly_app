@@ -9,28 +9,35 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Clerkly'),
+        title: const Text('Clerkly'),
+        backgroundColor: Colors.blueAccent,
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              icon: Icon(Icons.camera_alt),
-              label: Text('Dokument scannen'),
+              icon: const Icon(Icons.camera_alt, size: 32),
+              label: const Text('Dokument scannen', style: TextStyle(fontSize: 18)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              ),
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ScanScreen()),
+                  MaterialPageRoute(builder: (_) => const ScanScreen()),
                 );
               },
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 24),
             ElevatedButton.icon(
-              icon: Icon(Icons.folder_open),
-              label: Text('Gespeicherte Dokumente'),
+              icon: const Icon(Icons.folder_open, size: 32),
+              label: const Text('Gespeicherte Dokumente', style: TextStyle(fontSize: 18)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              ),
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => SavedDocumentsScreen()),
+                  MaterialPageRoute(builder: (_) => const SavedDocumentsScreen()),
                 );
               },
             ),
@@ -40,3 +47,4 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
+

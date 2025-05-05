@@ -22,90 +22,83 @@ class DocumentDetailScreen extends StatelessWidget {
     required this.timestamp,
   }) : super(key: key);
 
-  Future<String> _saveToDocuments(String originalPath) async {
-    final docDir = await getApplicationDocumentsDirectory();
-    final file = File(originalPath);
-    final newPath = '${docDir.path}/${DateTime.now().millisecondsSinceEpoch}_${file.uri.pathSegments.last}';
-    return await file.copy(newPath).then((f) => f.path);
-  }
-
-  Future<void> _exportPdf() async {
-    final savedPath = await _saveToDocuments(path);
-    final bytes = File(savedPath).readAsBytesSync();
-    final pdf = pw.Document();
-    final image = pw.MemoryImage(bytes);
-    final dateStr = DateFormat.yMMMMd('de').add_Hm().format(timestamp);
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (_) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text('Kategorie: $category', style: pw.TextStyle(fontSize: 18)),
-            pw.Text('Datum: $dateStr', style: pw.TextStyle(fontSize: 14)),
-            pw.SizedBox(height: 10),
-            pw.Divider(),
-            pw.SizedBox(height: 10),
-            pw.Text(text, style: pw.TextStyle(fontSize: 12)),
-            pw.SizedBox(height: 20),
-            pw.Center(child: pw.Image(image)),
-          ],
-        ),
-      ),
-    );
-    final pdfBytes = await pdf.save();
-    await Printing.sharePdf(bytes: pdfBytes, filename: 'Clerkly_Dokument.pdf');
-  }
-
-  void _shareImage() {
-    Share.shareXFiles([XFile(path)], text: 'Dokument: $category');
-  }
-
   @override
   Widget build(BuildContext context) {
-    final dateStr = DateFormat.yMMMMd('de').add_Hm().format(timestamp);
     return Scaffold(
-      appBar: AppBar(title: const Text('Dokument-Details')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      appBar: AppBar(
+        title: const Text('Dokument-Details'),
+        backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share),
+            onPressed: () => _shareDocument(),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
           children: [
-            if (File(path).existsSync())
-              Image.file(
-                File(path),
-                width: double.infinity,
-                height: 240,
-                fit: BoxFit.cover,
-              )
-            else
-              Container(
-                width: double.infinity,
-                height: 240,
-                color: Colors.grey[300],
-                child: const Center(child: Text('Kein Bild gefunden')),
-              ),
+            (path.isNotEmpty && File(path).existsSync())
+                ? Image.file(
+                    File(path),
+                    height: 200,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                    ),
+                    child: const Center(child: Text('Kein Bild gefunden')),
+                  ),
             const SizedBox(height: 16),
-            Text('Kategorie: $category', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text('Datum: $dateStr', style: Theme.of(context).textTheme.bodyMedium),
-            const Divider(height: 32),
-            Text(text, style: Theme.of(context).textTheme.bodyMedium),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.share),
-              label: const Text('Teilen'),
-              onPressed: _shareImage,
+            Text(
+              'Kategorie: $category',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.picture_as_pdf),
-              label: const Text('Export als PDF'),
-              onPressed: _exportPdf,
+            const SizedBox(height: 8),
+            Text(
+              'Datum: ${DateFormat.yMMMMd('de_DE').add_Hm().format(timestamp)}',
+              style: const TextStyle(fontSize: 16),
+            ),
+            const Divider(height: 32),
+            Text(
+              text,
+              style: const TextStyle(fontSize: 16),
             ),
           ],
         ),
       ),
     );
   }
+
+  Future<void> _shareDocument() async {
+    final pdf = pw.Document();
+    final ttf = await PdfGoogleFonts.robotoRegular();
+    final ttfBold = await PdfGoogleFonts.robotoBold();
+
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Kategorie: $category', style: pw.TextStyle(font: ttfBold)),
+            pw.Text(
+                'Datum: ${DateFormat.yMMMMd('de_DE').format(timestamp)}',
+                style: pw.TextStyle(font: ttf)),
+            pw.SizedBox(height: 20),
+            pw.Text(text, style: pw.TextStyle(font: ttf)),
+          ],
+        ),
+      ),
+    );
+
+    final output = await getTemporaryDirectory();
+    final file = File("${output.path}/document.pdf");
+    await file.writeAsBytes(await pdf.save());
+
+    await Share.shareXFiles([XFile(file.path)], text: 'Gescanntes Dokument');
+  }
 }
+

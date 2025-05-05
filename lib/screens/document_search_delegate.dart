@@ -1,76 +1,92 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-import '../services/firestore_service.dart';
 import 'document_detail_screen.dart';
 
-class DocumentSearchDelegate extends SearchDelegate<void> {
-  DocumentSearchDelegate() : super(searchFieldLabel: 'Dokumente durchsuchen…');
-
+class DocumentSearchDelegate extends SearchDelegate {
   @override
-  List<Widget>? buildActions(BuildContext context) {
+  List<Widget> buildActions(BuildContext context) {
     return [
-      if (query.isNotEmpty)
-        IconButton(icon: const Icon(Icons.clear), onPressed: () => query = '')
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () {
+          query = '';
+        },
+      ),
     ];
   }
 
   @override
-  Widget? buildLeading(BuildContext context) {
+  Widget buildLeading(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.arrow_back),
-      onPressed: () => close(context, null),
+      onPressed: () {
+        close(context, null);
+      },
     );
   }
 
   @override
   Widget buildResults(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  Widget _buildSearchResults() {
+    if (query.isEmpty) {
+      return const Center(child: Text('Suchbegriff eingeben.'));
+    }
+
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirestoreService.getDocumentsStream(),
-      builder: (ctx, snap) {
-        if (snap.hasError) {
-          return Center(child: Text("Fehler: \${snap.error}"));
-        }
-        if (!snap.hasData) {
+      stream: FirebaseFirestore.instance
+          .collection('documents')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        final hits = snap.data!.docs.where((d) {
-          final data = d.data();
-          final txt     = (data['text']    ?? '').toString().toLowerCase();
-          final sum     = (data['summary'] ?? '').toString().toLowerCase();
-          final cat     = (data['category']?? '').toString().toLowerCase();
-          final q       = query.toLowerCase();
-          return txt.contains(q) || sum.contains(q) || cat.contains(q);
+
+        final results = snapshot.data!.docs.where((doc) {
+          final data = doc.data();
+          final text = data['text']?.toString().toLowerCase() ?? '';
+          final category = data['category']?.toString().toLowerCase() ?? '';
+          return text.contains(query.toLowerCase()) || category.contains(query.toLowerCase());
         }).toList();
 
-        if (hits.isEmpty) {
-          return const Center(child: Text('Keine Treffer'));
+        if (results.isEmpty) {
+          return const Center(child: Text('Keine passenden Dokumente gefunden.'));
         }
 
         return ListView.builder(
-          itemCount: hits.length,
+          itemCount: results.length,
           itemBuilder: (context, index) {
-            final d    = hits[index];
-            final data = d.data();
-            final preview = (data['summary'] ?? '').toString();
-            final ts      = data['timestamp'] as Timestamp?;
-            final date    = ts?.toDate() ?? DateTime.now();
-            final dateStr = DateFormat.yMd('de').add_Hm().format(date);
+            final doc = results[index];
+            final path = doc['path'] ?? '';
+            final category = doc.data().containsKey('category') ? doc['category'] : 'Unbekannt';
+            final timestamp = doc['timestamp'] != null
+                ? (doc['timestamp'] as Timestamp).toDate()
+                : DateTime.now();
+            final formattedDate = '${timestamp.day}.${timestamp.month}.${timestamp.year}';
 
             return ListTile(
-              leading: const Icon(Icons.insert_drive_file),
-              title: Text(preview),
-              subtitle: Text("\${data['category']} · \$dateStr"),
+              title: Text(category),
+              subtitle: Text('Gespeichert am: $formattedDate'),
+              trailing: const Icon(Icons.arrow_forward_ios),
               onTap: () {
-                close(context, null);
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => DocumentDetailScreen(
-                    path: data['path'] as String,
-                    text: data['text'] as String,
-                    category: data['category'] as String,
-                    timestamp: date,
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DocumentDetailScreen(
+                      path: path,
+                      text: doc.data().containsKey('text') ? doc['text'] : '',
+                      category: category,
+                      timestamp: timestamp,
+                    ),
                   ),
-                ));
+                );
               },
             );
           },
@@ -78,9 +94,5 @@ class DocumentSearchDelegate extends SearchDelegate<void> {
       },
     );
   }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return const Center(child: Text('Suchbegriff eingeben…'));
-  }
 }
+
