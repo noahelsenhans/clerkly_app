@@ -29,10 +29,12 @@ class _ResultScreenState extends State<ResultScreen> {
   Future<void> _processImage() async {
     final text = await OCRService.extractText(widget.imagePath);
     final summary = await OpenAIService.summarize(text);
+    final category = await OpenAIService.suggestCategory(text);
 
     setState(() {
       _ocrText = text;
       _summary = summary;
+      _selectedCategory = category.isNotEmpty ? category : 'Allgemein';
       _isLoading = false;
     });
   }
