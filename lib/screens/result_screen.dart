@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:clerkly_app/services/ocr_service.dart';
 import 'package:clerkly_app/services/openai_service.dart';
 import 'package:clerkly_app/services/firestore_service.dart';
+import 'package:clerkly_app/services/pdf_service.dart';
+import 'document_detail_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   final String imagePath;
@@ -16,9 +19,8 @@ class _ResultScreenState extends State<ResultScreen> {
   String _ocrText = '';
   String _summary = '';
   String _selectedCategory = 'Allgemein';
+  String _pdfPath = '';
   bool _isLoading = true;
-
-  final List<String> _categorySuggestions = ['Allgemein', 'Rechnung', 'Zeugnis', 'Rezept'];
 
   @override
   void initState() {
@@ -29,32 +31,47 @@ class _ResultScreenState extends State<ResultScreen> {
   Future<void> _processImage() async {
     final text = await OCRService.extractText(widget.imagePath);
     final summary = await OpenAIService.summarize(text);
-    final category = await OpenAIService.suggestCategory(text);
+
+    // PDF erzeugen
+    File imageFile = File(widget.imagePath);
+    File pdfFile = await PDFService.createPDFfromImage(
+      imageFile,
+      'dokument_${DateTime.now().millisecondsSinceEpoch}'
+    );
 
     setState(() {
       _ocrText = text;
       _summary = summary;
-      _selectedCategory = category.isNotEmpty ? category : 'Allgemein';
+      _pdfPath = pdfFile.path;
       _isLoading = false;
     });
   }
 
-  void _saveDocument() {
+  void _saveAndOpenDocument() {
     FirestoreService.saveDocument(
-      path: widget.imagePath,
+      path: _pdfPath,
       text: _ocrText,
+      summary: _summary,
       category: _selectedCategory,
     );
-    Navigator.pop(context);
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DocumentDetailScreen(
+          path: _pdfPath,
+          text: _ocrText,
+          summary: _summary,
+          category: _selectedCategory,
+          timestamp: DateTime.now(),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan Ergebnis'),
-        backgroundColor: Colors.blueAccent,
-      ),
+      appBar: AppBar(title: const Text('Scan Ergebnis')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
@@ -62,27 +79,20 @@ class _ResultScreenState extends State<ResultScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Zusammenfassung:',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    _summary,
-                    style: const TextStyle(fontSize: 16),
-                  ),
+                  Text(_summary),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Kategorie auswählen:',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  Text('Kategorie auswählen:'),
                   Wrap(
                     spacing: 8.0,
-                    children: _categorySuggestions.map((cat) {
+                    children: ['Allgemein', 'Rechnung', 'Vertrag', 'Zeugnis'].map((cat) {
                       return ChoiceChip(
                         label: Text(cat),
                         selected: _selectedCategory == cat,
-                        selectedColor: Colors.blueAccent,
                         onSelected: (selected) {
                           setState(() {
                             _selectedCategory = cat;
@@ -92,16 +102,9 @@ class _ResultScreenState extends State<ResultScreen> {
                     }).toList(),
                   ),
                   const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: _saveDocument,
-                      child: const Text('Speichern', style: TextStyle(fontSize: 18)),
-                    ),
+                  ElevatedButton(
+                    onPressed: _saveAndOpenDocument,
+                    child: const Text('Speichern & Öffnen'),
                   ),
                 ],
               ),
