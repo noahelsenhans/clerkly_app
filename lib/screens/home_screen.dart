@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'scan_screen.dart';
-import 'saved_documents_screen.dart';
+import 'package:clerkly_app/screens/scan_screen.dart';
+import 'package:clerkly_app/screens/saved_documents_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -17,26 +17,27 @@ class HomeScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              icon: const Icon(Icons.camera_alt, size: 32),
-              label: const Text('Dokument scannen', style: TextStyle(fontSize: 18)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              ),
-              onPressed: () {
-                Navigator.of(context).push(
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Neues Dokument'),
+              onPressed: () async {
+                final path = await Navigator.of(context).push<String>(
                   MaterialPageRoute(builder: (_) => const ScanScreen()),
                 );
+                if (path != null) {
+                  // TODO: Weiterverarbeitung (OCR/PDF) später
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Ausgewählter Pfad: $path')),
+                  );
+                }
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             ElevatedButton.icon(
-              icon: const Icon(Icons.folder_open, size: 32),
-              label: const Text('Gespeicherte Dokumente', style: TextStyle(fontSize: 18)),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              ),
+              icon: const Icon(Icons.folder_open),
+              label: const Text('Gespeicherte Dokumente'),
               onPressed: () {
-                Navigator.of(context).push(
+                Navigator.push(
+                  context,
                   MaterialPageRoute(builder: (_) => const SavedDocumentsScreen()),
                 );
               },
