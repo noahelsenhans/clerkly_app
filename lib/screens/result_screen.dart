@@ -1,11 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:clerkly_app/services/ocr_service.dart';
-import 'package:clerkly_app/services/openai_service.dart';
+import 'package:clerkly_app/services/pdf_service.dart';
 import 'package:clerkly_app/services/firestore_service.dart';
+import 'document_detail_screen.dart';
 
 class ResultScreen extends StatefulWidget {
   final String imagePath;
-
   const ResultScreen({Key? key, required this.imagePath}) : super(key: key);
 
   @override
@@ -14,11 +15,9 @@ class ResultScreen extends StatefulWidget {
 
 class _ResultScreenState extends State<ResultScreen> {
   String _ocrText = '';
-  String _summary = '';
   String _selectedCategory = 'Allgemein';
+  String _pdfPath = '';
   bool _isLoading = true;
-
-  final List<String> _categorySuggestions = ['Allgemein', 'Rechnung', 'Zeugnis', 'Rezept'];
 
   @override
   void initState() {
@@ -27,32 +26,38 @@ class _ResultScreenState extends State<ResultScreen> {
   }
 
   Future<void> _processImage() async {
+    // OCR
     final text = await OCRService.extractText(widget.imagePath);
-    final summary = await OpenAIService.summarize(text);
+
+    // PDF erzeugen
+    final pdfFile = await PDFService.createPDFfromImage(
+      File(widget.imagePath),
+      'doc_${DateTime.now().millisecondsSinceEpoch}',
+    );
 
     setState(() {
       _ocrText = text;
-      _summary = summary;
+      _pdfPath = pdfFile.path;
       _isLoading = false;
     });
   }
 
-  void _saveDocument() {
-    FirestoreService.saveDocument(
-      path: widget.imagePath,
+  Future<void> _saveAndOpenDocument() async {
+    // In Firestore speichern
+    await FirestoreService.saveDocument(
+      path: _pdfPath,
       text: _ocrText,
       category: _selectedCategory,
     );
-    Navigator.pop(context);
+
+    // Zurück zum allerersten Route (HomeScreen)
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Scan Ergebnis'),
-        backgroundColor: Colors.blueAccent,
-      ),
+      appBar: AppBar(title: const Text('Scan Ergebnis')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
@@ -60,46 +65,34 @@ class _ResultScreenState extends State<ResultScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Zusammenfassung:',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
+                  Text('OCR Text:',
+                      style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  Text(
-                    _summary,
-                    style: const TextStyle(fontSize: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Text(_ocrText),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Kategorie auswählen:',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  Text('Kategorie auswählen:'),
                   Wrap(
                     spacing: 8.0,
-                    children: _categorySuggestions.map((cat) {
-                      return ChoiceChip(
-                        label: Text(cat),
-                        selected: _selectedCategory == cat,
-                        selectedColor: Colors.blueAccent,
-                        onSelected: (selected) {
-                          setState(() {
-                            _selectedCategory = cat;
-                          });
-                        },
-                      );
-                    }).toList(),
+                    children: ['Allgemein', 'Rechnung', 'Zeugnis']
+                        .map((cat) => ChoiceChip(
+                              label: Text(cat),
+                              selected: _selectedCategory == cat,
+                              onSelected: (_) {
+                                setState(() {
+                                  _selectedCategory = cat;
+                                });
+                              },
+                            ))
+                        .toList(),
                   ),
                   const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      onPressed: _saveDocument,
-                      child: const Text('Speichern', style: TextStyle(fontSize: 18)),
-                    ),
+                  ElevatedButton(
+                    onPressed: _saveAndOpenDocument,
+                    child: const Text('Speichern & Öffnen'),
                   ),
                 ],
               ),
