@@ -1,17 +1,20 @@
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../services/firestore_service.dart';
 import 'document_detail_screen.dart';
 
-class DocumentSearchDelegate extends SearchDelegate {
+class DocumentSearchDelegate extends SearchDelegate<String> {
+  DocumentSearchDelegate() : super(searchFieldLabel: 'Dokumente suchen');
+
   @override
   List<Widget> buildActions(BuildContext context) {
     return [
-      IconButton(
-        icon: const Icon(Icons.clear),
-        onPressed: () {
-          query = '';
-        },
-      ),
+      if (query.isNotEmpty)
+        IconButton(
+          icon: const Icon(Icons.clear),
+          onPressed: () => query = '',
+        ),
     ];
   }
 
@@ -19,71 +22,54 @@ class DocumentSearchDelegate extends SearchDelegate {
   Widget buildLeading(BuildContext context) {
     return IconButton(
       icon: const Icon(Icons.arrow_back),
-      onPressed: () {
-        close(context, null);
-      },
+      onPressed: () => close(context, ''),
     );
   }
 
   @override
   Widget buildResults(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  @override
-  Widget buildSuggestions(BuildContext context) {
-    return _buildSearchResults();
-  }
-
-  Widget _buildSearchResults() {
-    if (query.isEmpty) {
-      return const Center(child: Text('Suchbegriff eingeben.'));
-    }
-
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('documents')
-          .orderBy('timestamp', descending: true)
-          .snapshots(),
+      stream: FirestoreService.getDocumentsStream(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-
         final results = snapshot.data!.docs.where((doc) {
           final data = doc.data();
-          final text = data['text']?.toString().toLowerCase() ?? '';
-          final category = data['category']?.toString().toLowerCase() ?? '';
-          return text.contains(query.toLowerCase()) || category.contains(query.toLowerCase());
+          final text = data['text'] as String? ?? '';
+          final category = data['category'] as String? ?? '';
+          return text.toLowerCase().contains(query.toLowerCase()) ||
+                 category.toLowerCase().contains(query.toLowerCase());
         }).toList();
 
         if (results.isEmpty) {
-          return const Center(child: Text('Keine passenden Dokumente gefunden.'));
+          return const Center(child: Text('Keine Ergebnisse'));
         }
 
-        return ListView.builder(
+        return ListView.separated(
           itemCount: results.length,
-          itemBuilder: (context, index) {
-            final doc = results[index];
-            final path = doc['path'] ?? '';
-            final category = doc.data().containsKey('category') ? doc['category'] : 'Unbekannt';
-            final timestamp = doc['timestamp'] != null
-                ? (doc['timestamp'] as Timestamp).toDate()
-                : DateTime.now();
-            final formattedDate = '${timestamp.day}.${timestamp.month}.${timestamp.year}';
-
+          separatorBuilder: (_, __) => const Divider(),
+          itemBuilder: (context, i) {
+            final data = results[i].data();
+            final path = data['path'] as String;
+            final text = data['text'] as String;
+            final category = data['category'] as String;
+            final ts = results[i]['timestamp'] as Timestamp?;
+            final date = ts != null
+                ? DateFormat('dd.MM.yyyy').format(ts.toDate())
+                : 'Unbekannt';
             return ListTile(
               title: Text(category),
-              subtitle: Text('Gespeichert am: $formattedDate'),
-              trailing: const Icon(Icons.arrow_forward_ios),
+              subtitle: Text('Am $date'),
               onTap: () {
-                Navigator.of(context).push(
+                Navigator.push(
+                  context,
                   MaterialPageRoute(
                     builder: (_) => DocumentDetailScreen(
                       path: path,
-                      text: doc.data().containsKey('text') ? doc['text'] : '',
+                      text: text,
                       category: category,
-                      timestamp: timestamp,
+                      timestamp: ts?.toDate() ?? DateTime.now(),
                     ),
                   ),
                 );
@@ -93,6 +79,11 @@ class DocumentSearchDelegate extends SearchDelegate {
         );
       },
     );
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return buildResults(context);
   }
 }
 

@@ -1,75 +1,66 @@
-import 'document_search_delegate.dart';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../services/firestore_service.dart';
 import 'document_detail_screen.dart';
+import 'document_search_delegate.dart';
 
-class SavedDocumentsScreen extends StatefulWidget {
+class SavedDocumentsScreen extends StatelessWidget {
   const SavedDocumentsScreen({Key? key}) : super(key: key);
 
   @override
-  _SavedDocumentsScreenState createState() => _SavedDocumentsScreenState();
-}
-
-class _SavedDocumentsScreenState extends State<SavedDocumentsScreen> {
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-appBar: AppBar(
-  title: const Text('Gespeicherte Dokumente'),
-  backgroundColor: Colors.blueAccent,
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.search),
-      onPressed: () {
-        showSearch(
-          context: context,
-          delegate: DocumentSearchDelegate(),
-        );
-      },
-    ),
-  ],
-),
+      appBar: AppBar(
+        title: const Text('Gespeicherte Dokumente'),
+        backgroundColor: Colors.blueAccent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              showSearch<String>(
+                context: context,
+                delegate: DocumentSearchDelegate(),
+              );
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance
-            .collection('documents')
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
+        stream: FirestoreService.getDocumentsStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
             return const Center(child: Text('Keine Dokumente gefunden.'));
           }
-
-          final docs = snapshot.data!.docs;
-
           return ListView.separated(
             itemCount: docs.length,
-            separatorBuilder: (context, index) => const Divider(),
+            separatorBuilder: (_, __) => const Divider(),
             itemBuilder: (context, index) {
-              final doc = docs[index];
-              final path = doc['path'] ?? '';
-              final category = doc.data().containsKey('category') ? doc['category'] : 'Unbekannt';
-              final timestamp = doc['timestamp'] != null
-                  ? (doc['timestamp'] as Timestamp).toDate()
-                  : DateTime.now();
-
-              final formattedDate = DateFormat('dd.MM.yyyy').format(timestamp);
-
+              final data = docs[index].data();
+              final path = data['path'] as String;
+              final text = data['text'] as String;
+              final category = data['category'] as String;
+              final ts = docs[index]['timestamp'] as Timestamp?;
+              final date = ts != null
+                  ? DateFormat('dd.MM.yyyy').format(ts.toDate())
+                  : 'Unbekannt';
               return ListTile(
                 title: Text(category),
-                subtitle: Text('Gespeichert am: $formattedDate'),
+                subtitle: Text('Am $date'),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  Navigator.of(context).push(
+                  Navigator.push(
+                    context,
                     MaterialPageRoute(
                       builder: (_) => DocumentDetailScreen(
                         path: path,
-                        text: doc.data().containsKey('text') ? doc['text'] : '',
+                        text: text,
                         category: category,
-                        timestamp: timestamp,
+                        timestamp: ts?.toDate() ?? DateTime.now(),
                       ),
                     ),
                   );

@@ -41,29 +41,45 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final buttonWidth = MediaQuery.of(context).size.width * 0.8;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Dokument auswählen')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(children: [
-          ElevatedButton.icon(
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Dokument scannen'),
-            onPressed: _scanWithCamera,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: buttonWidth,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Dokument scannen'),
+                  onPressed: _scanWithCamera,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: buttonWidth,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Aus Galerie importieren'),
+                  onPressed: _importFromGallery,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: buttonWidth,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.folder),
+                  label: const Text('Aus Dateien importieren'),
+                  onPressed: _importFromFiles,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.photo_library),
-            label: const Text('Aus Galerie importieren'),
-            onPressed: _importFromGallery,
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.folder),
-            label: const Text('Aus Dateien importieren'),
-            onPressed: _importFromFiles,
-          ),
-        ]),
+        ),
       ),
     );
   }
